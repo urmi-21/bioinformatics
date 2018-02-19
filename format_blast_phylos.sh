@@ -21,5 +21,5 @@ for f in "${file_list[@]}"; do
         echo $staxid
         echo $newfname
         echo "qseqid sseqid qstart qend sstart send evalue score staxid" | tr " " "\t" > $newfname
-        awk '{print $1,$2,$7,$8,$9,$10,$11,$13,'"$staxid"'}' $f | head | tr " " "\t" >> $newfname
+        awk '{print $1,$2,$7,$8,$9,$10,$11,$13,'"$staxid"'}' $f | tr " " "\t" >> $newfname
 done
