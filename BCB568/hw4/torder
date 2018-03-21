@@ -1,0 +1,267 @@
+#!/usr/bin/perl
+
+##
+# @file torder
+# @author Karin S. Dorman
+# @date Fri Feb 14 02:14:33 CST 2014
+#
+# Usage: ./torder < seq_file
+#
+# Find the best order Markov chain model to describe a sequence.
+##
+
+use strict;
+
+use List::Util qw(max);
+
+### USER: UPDATE THESE VARIABLES AS DESIRED ###
+# Test sequence
+my $tseq = '';	#'test.fsa';	#'NC_000913.fasta';
+# beware of memory usage for large orders; this program is not very smart
+my @orders =		# orders to test
+#	(6);
+#	(0,1,2,3,4,5,6,7,8,9,10,11,12);
+	(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+# in order to compare models of varying order, one must condition on the
+# max. order you will test initial no. of nucleotides:
+my $condition = max(@orders);
+my %print_orders =	# orders for which to print estimates
+	(0 => 1, 1 => 1, 2 => 1, 3 => 1);
+my %print_orders_cnt =	# orders for which to print counts
+	(0 => 0, 1 => 0, 2 => 0, 3 => 0);
+my $dirichlet_likelihood = 0;	# use Dirichlet likelihood
+my @alpha = (2)x4;		# fixed parameters of Dirichlet likelihood
+################################################
+
+my $alpha = $alpha[0] + $alpha[1] + $alpha[2] + $alpha[3];
+
+my %nuc	=		# map nucs. to numbers
+	 ('A' => 0, 'C' => 1, 'G' => 2, 'T' => 3);
+my @base =		# map numbers to nucs
+	('A','C','G','T');
+
+print STDERR "Set condition to be >= order\n", exit
+	if $condition < $orders[$#orders];
+
+print "Orders=@orders, Condition=$condition\n";
+
+# read sequences from STDIN
+my @seq = <STDIN>;
+my @names = ();
+my @seqs = ();
+my $i = -1;
+for my $seq (@seq) {
+	chomp $seq;
+	if ($seq =~ /^>/) {
+		$i++;
+		$names[$i] = $seq;
+		$names[$i] =~ s/^>//;
+	} else {
+		$seqs[$i] .= $seq;
+	}
+}
+#my $pattern = 'TGGG';	# apobec target
+my $pattern = 'TGAG';	# apobec target mutated
+#my $pattern = 'GAATTC';	# EcoRI
+#my $pattern = 'GCGGCCGC';	# NotI
+my $cnt = 0;
+my $len = 0;
+my $term_len = 0;
+for my $seq (@seqs) {
+	$cnt++ while ($seq =~ /$pattern/ig);	# apobec sequence
+	$len += length($seq);
+	my @tmp = split(/$pattern/i, $seq);
+	$term_len += length($tmp[$#tmp]);
+}
+print "Number of matches: $cnt (combined length: $len)\n";
+print "Mean wait time for $pattern " . (($len - $term_len) / $cnt) . " in sequences @names\n";
+my $pll = 0;
+
+if ($tseq) {
+	open(FILE, "<$tseq") || die("[ERROR] Could not open file '$tseq'");
+	@seq = <FILE>;
+	$tseq = join('', @seq);
+	$tseq =~ s/\n//g;
+	close(FILE);
+}
+undef @seq;
+
+# fit each order
+for my $order (@orders) {
+	my $nstates =			# number of possible states (bit arithmetic)
+		1 << (2*$order);
+
+	# masks allow us to quickly get context of certain length
+	my $mask = (1 << (2*$order)) - 1;	# 0 for $order==0
+	my $wide_mask = (1 << (2*$order+2)) - 1;# 11 for $order==0
+
+	# estimated transition probability matrix (or nucleotide probabilities)
+	my @p = (0) x (1 << (2*$order+2));
+
+	for my $seq (@seqs) {
+	my @bases = split('', $seq);
+
+	# first position to count (0 if not order 0)
+	my $lstart = max($order, $condition);
+
+	# pick up the context for the first transition from the 
+	# data we are conditioning on (no context if order 0)
+	my $index = 0;
+	for (my $l=$order; $l>0; $l--) {
+		$index = ($index << 2) | $nuc{$bases[$lstart - $l]};
+	}
+
+	# iterate through remaining sequence
+	for (my $j=$lstart; $j<@bases; $j++) {
+		# count nucleotides after initial part (no initial if order 0)
+		# index is numeric code for nuc. string
+		# 0, 1, 2, or 3 when order 0
+		$index = (($index << 2) | $nuc{$bases[$j]}) & $wide_mask;
+		$p[$index]++;
+	}
+	}
+
+	# print out counts if requested
+	if ($print_orders_cnt{$order}) {
+		for (my $j=0; $j<@p; $j+=4) {
+			for (my $k=$order; $k>0; $k--) {
+				print $base[($j >> (2*$k)) & 3];
+			}
+			print ":";
+my $sum = 0;
+			for (my $k=0; $k<4; $k++) {
+				print sprintf(" %d", $p[$j + $k]);
+$sum += $p[$j + $k];
+			}
+			print " $sum\n";
+		}
+	}
+
+	# estimate parameters from counts accumulated above
+	my $warn = 0;
+	for (my $j=0; $j<@p; $j+=4) {
+		my $sum = $p[$j] + $p[$j+1] + $p[$j+2] + $p[$j+3];
+		$warn=1, print STDERR "[WARNING] MLE at boundary for k=$order!!\n"
+			if !$warn && (!$sum || $sum == $p[$j] || $sum == $p[$j+1] || $sum == $p[$j+2] || $sum == $p[$j+3]);
+		for (my $k=0; $k<4; $k++) {
+			# multinomial likelihood is occurr./chances
+			if ($sum && $p[$j+$k]) {
+				$p[$j+$k] = log(($p[$j+$k] + $alpha[$k])/($sum + $alpha)) if $dirichlet_likelihood;
+				$p[$j+$k] = log($p[$j+$k]/$sum) if !$dirichlet_likelihood;
+			# context never appears (put flat prob)
+			} else {
+				$p[$j+$k] = log(0.25) if $dirichlet_likelihood;
+				$p[$j+$k] = 0 if !$dirichlet_likelihood;
+			}
+		}
+	}
+
+	# print out parameter estimates if requested
+	if ($print_orders{$order}) {
+		for (my $j=0; $j<@p; $j+=4) {
+			for (my $k=$order; $k>0; $k--) {
+				print $base[($j >> (2*$k)) & 3];
+			}
+			print ":";
+			for (my $k=0; $k<4; $k++) {
+				print sprintf(" %.15f", exp($p[$j + $k]));
+			}
+			print "\n";
+		}
+	}
+
+
+	# compute log likelihood
+	my $llike = 0;		# log likelihood
+	my $ntt = 0;		# count of nucleotides included
+	my $lstart = max($condition, $order);
+
+	for my $seq (@seqs) {
+	# the first part is as before
+	my @bases = split('', $seq);
+
+	my $index = 0;
+	for (my $k=$order; $k>0; $k--) {
+		$index = ($index << 2) | $nuc{$bases[$lstart - $k]};
+	}
+
+	# for unconditioned states, either traverse motif match
+	for (my $j=$lstart; $j<@bases; $j++) {
+		# all nucs. after condition contribute to loglikelihood
+		# (o+1)mer (context plus next nucleotide)
+		$index = (($index << 2) | $nuc{$bases[$j]}) & $wide_mask;
+		$llike += $p[$index];
+		$ntt++;
+	}
+	}
+	print "Log likelihood for order $order: $llike";
+	if ($pll) {
+		print " (LRT: " . (-2*($pll-$llike)) . "; df: " . (9*4**($order-1)) . "; data size: $ntt)";
+		my $out = `echo "1-pchisq(-2*($pll-$llike), df=9*4^($order-1))" | R --no-save --no-restore-data --slave`;
+		$out =~ s/\[1\] //;
+		print ": p-value = $out";
+	} else {
+		print "\n";
+	}
+	$pll = $llike;
+
+	if ($tseq) {
+		my @bases = split('', $tseq);
+		my $index = 0;
+		for (my $l=$order; $l>0; $l--) {
+			$index = ($index << 2) | $nuc{$bases[$lstart - $l]};
+		}
+
+		$llike = 0;
+		# estimated transition probability matrix (or nucleotide probabilities)
+		my @q = (0) x (1 << (2*$order+2));
+
+		# iterate through remaining sequence
+		for (my $j=$lstart; $j<@bases; $j++) {
+			# count nucleotides after initial part (no initial if order 0)
+			# index is numeric code for nuc. string
+			# 0, 1, 2, or 3 when order 0
+			$index = (($index << 2) | $nuc{$bases[$j]}) & $wide_mask;
+			$llike += $p[$index];
+			$q[$index]++;
+		}
+		print "Log likelihood for test sequence under H0 (@names): $llike\n";
+
+		# estimate parameters from counts accumulated above
+		$warn = 0;
+		for (my $j=0; $j<@q; $j+=4) {
+			my $sum = $q[$j] + $q[$j+1] + $q[$j+2] + $q[$j+3];
+			$warn=1, print STDERR "[WARNING] MLE at boundary!!\n"
+				if !$warn && (!$sum || $sum == $q[$j] || $sum == $q[$j+1] || $sum == $q[$j+2] || $sum == $q[$j+3]);
+			for (my $k=0; $k<4; $k++) {
+				# multinomial likelihood is occurr./chances
+				if ($sum && $q[$j+$k]) {
+					$q[$j+$k] = log(($q[$j+$k] + $alpha[$k])/($sum + $alpha)) if $dirichlet_likelihood;
+					$q[$j+$k] = log($q[$j+$k]/$sum) if !$dirichlet_likelihood;
+				# context never appears (put flat prob)
+				} else {
+					$q[$j+$k] = log(0.25) if $dirichlet_likelihood;
+					$q[$j+$k] = 0 if !$dirichlet_likelihood;
+				}
+			}
+		}
+
+		$index = 0;
+		my $llike1 = 0;
+		# iterate through remaining sequence
+		for (my $j=$lstart; $j<@bases; $j++) {
+			# count nucleotides after initial part (no initial if order 0)
+			# index is numeric code for nuc. string
+			# 0, 1, 2, or 3 when order 0
+			$index = (($index << 2) | $nuc{$bases[$j]}) & $wide_mask;
+			$llike1 += $q[$index];
+		}
+		print "Log likelihood for tests sequence under H1 (Order: $order): $llike1\n";
+		print "LRT test for H0 (@names):  " . (-2*($llike - $llike1));
+		print " (df: " . (3*4**$order) . "):";
+		my $out = `echo "1-pchisq(-2*($llike - $llike1), df=3*4^$order)" | R --no-save --no-restore-data --slave`;
+		$out =~ s/\[1\] //;
+		chomp $out;
+		print ": p-value = $out\n";
+	}
+}
