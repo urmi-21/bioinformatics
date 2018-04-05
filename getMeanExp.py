@@ -16,5 +16,5 @@ with open(sys.argv[1]) as f:
 		for e in temp[_C:]:
 			totalexp=totalexp+float(e)
 		avg=totalexp/len(temp[_C:])
-		print thisTid+'\t'+thisphylo+'\t'+str(avg)
+		print thisTid+'\t'+str(avg)+'\t'+thisphylo
 		
