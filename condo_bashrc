@@ -1,0 +1,52 @@
+# .bashrc
+
+# Source global definitions
+if [ -f /etc/bashrc ]; then
+	. /etc/bashrc
+fi
+
+# Uncomment the following line if you don't like systemctl's auto-paging feature:
+# export SYSTEMD_PAGER=
+
+# User specific aliases and functions
+PATH=$(getconf PATH)
+export PATH=/work/LAS/mash-lab/usingh/lib_urmi/bin:$PATH
+export PATH=/work/LAS/mash-lab/usingh/lib_urmi/softwares/MUMmer3.23:$PATH
+export PATH=/work/LAS/mash-lab/usingh/lib_urmi/python/bin:$PATH
+export PATH=/work/LAS/mash-lab/usingh/lib_urmi/bin/lib:$PATH
+export TMPDIR=/work/LAS/mash-lab/usingh/lib_urmi/tmp
+export PATH=/work/LAS/mash-lab/software/lib/curl-7.53.1/bin:$PATH
+export PATH=/work/LAS/mash-lab/software/lib/openssl-1.1.0e/bin:$PATH
+export PATH=/work/LAS/mash-lab/software/programs/R-3.3.2/bin:$PATH
+export PATH=/work/LAS/mash-lab/software/lib/libxml2-2.7.2/bin:$PATH
+export PATH=/work/LAS/mash-lab/software/programs/EMBOSS_6.6.0/bin:$PATH
+export PATH=/work/LAS/mash-lab/software/programs/bedtools2-master/bin:$PATH
+export PATH=/work/LAS/mash-lab/software/programs/parallel_20170222/bin:$PATH
+export PATH=/work/LAS/mash-lab/software/programs/texlive/2016/bin/x86_64-linux:$PATH
+export PATH=/work/LAS/mash-lab/software/lib/gcc-6.3.0/bin:$PATH
+export PATH=/work/LAS/mash-lab/software/lib/Python-3.5.1/bin:$PATH
+export PATH=/work/LAS/mash-lab/software/programs/ncbi-blast-2.6.0+/bin:$PATH
+export PATH=/work/LAS/mash-lab/software/programs/hmmer-3.1b2-linux-intel-x86_64/bin:$PATH
+export PATH=/work/LAS/mash-lab/software/programs/edirect/20170320:$PATH
+export PATH=/work/LAS/mash-lab/software/programs/sratoolkit.2.8.2-1-centos_linux64/bin:$PATH
+export PATH=/work/LAS/mash-lab/usingh/lib_urmi/geoscripts/parallel-fastq-dump-master:$PATH
+export PATH=/work/LAS/mash-lab/software/programs/lbzip2_2.5/bin:$PATH
+export PATH=/work/LAS/mash-lab/software/programs/axel-1.0b/bin:$PATH
+export PATH=/work/LAS/mash-lab/software/programs/prozilla-2.0.4/bin:$PATH
+export LD_LIBRARY_PATH=/work/LAS/mash-lab/software/lib/gmp-6.1.2/lib:/work/LAS/mash-lab/software/lib/mpfr-3.1.5/lib:/work/LAS/mash-lab/software/lib/mpc-1.0.2/lib:/work/LAS/mash-lab/software/lib/gcc-6.3.0/lib64:/work/LAS/mash-lab/software/lib/curl-7.53.1/lib:/work/LAS/mash-lab/software/lib/openssl_devel/lib64:/work/LAS/mash-lab/software/lib/openssl-1.1.0e/lib:/shared/hpc/matlab/R2014a/sys/os/glnxa64/:/shared/hpc/comsol/5.2/lib/glnxa64/
+export PKG_CONFIG_PATH=/work/LAS/mash-lab/software/lib/curl-7.53.1/lib/pkgconfig:/work/LAS/mash-lab/software/lib/openssl-1.1.0e/lib/pkgconfig
+export JAVA_HOME=/work/LAS/mash-lab/software/programs/jdk1.8.0_121
+export PATH=$JAVA_HOME/bin:$PATH
+export PATH=/work/LAS/mash-lab/software/ascp_connect/bin:$PATH
+export PATH=/work/LAS/mash-lab/software/pigz-2.4:$PATH
+#for Entities.pm reqd for esearch 
+#PERL5LIB=/opt/rit/app/perl/5.22.1/lib/site_perl/5.22.1/x86_64-linux-thread-multi:$PERL5LIB; export PERL5LIB
+
+#ALIASES
+alias interactive='srun -N 1 -n 16 -t 8:00:00 --pty bash'
+alias work='cd /work/LAS/mash-lab'
+alias js='squeue -u usingh'
+
+#paths
+SALMON_INDEX=/work/LAS/mash-lab/usingh/urmi/human_data/hominoid/cdna/final_transcripts/human_index_final
+ASPERA_HOME=/work/LAS/mash-lab/software/ascp_connect
